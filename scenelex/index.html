@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SceneLex · AI 英语记忆</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0e1116">
+<style>
+:root{
+  --bg:#0e1116;--card:#161a21;--card2:#1d232c;--text:#e9edf2;--muted:#98a2ad;
+  --accent:#4ea1ff;--accent2:#ffb454;--line:#29303a;--good:#3ddc97;--warn:#ff6b6b;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:linear-gradient(180deg,#0e1116,#12161c 40%,#0e1116);color:var(--text);min-height:100vh}
+header{padding:22px 18px 8px;text-align:center}
+h1{margin:0 0 4px;font-size:21px}
+.sub{color:var(--muted);font-size:12.5px}
+.wrap{max-width:720px;margin:0 auto;padding:14px 16px 70px}
+.searchbar{display:flex;gap:10px;margin:16px 0 8px}
+input[type=text],input[type=password]{background:var(--card);border:1px solid var(--line);color:var(--text);
+  border-radius:12px;padding:13px 14px;font-size:15px;outline:none;width:100%;font-family:inherit}
+input:focus{border-color:var(--accent)}
+button{padding:13px 18px;border-radius:12px;border:none;background:var(--accent);color:#06101f;
+  font-weight:700;font-size:14.5px;cursor:pointer;white-space:nowrap}
+button:hover{filter:brightness(1.08)}
+button.ghost{background:var(--card2);color:var(--text);border:1px solid var(--line)}
+button.speak{background:transparent;border:1px solid var(--line);color:var(--accent);font-size:15px;padding:6px 10px;border-radius:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:14px 0}
+.card h2{margin:0 0 6px;font-size:17px}
+.card h3{margin:14px 0 6px;font-size:14px;color:var(--accent2)}
+.muted{color:var(--muted);font-size:13px;line-height:1.65}
+.synitem{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0}
+.word{font-size:16px;font-weight:800;color:var(--accent)}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:#22303f;color:#9fd0ff;margin-left:8px}
+.tag.chunk{background:#243a2a;color:#9fe0b4}
+.scene{margin:6px 0;padding:8px 10px;background:#121820;border-radius:8px;font-size:14px;line-height:1.7}
+.scene .label{font-size:11px;color:var(--accent2);display:block;margin-bottom:2px}
+.cn{color:var(--muted);font-size:12px}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+.err{color:var(--warn)}
+.pill{display:inline-block;padding:2px 8px;border-radius:8px;background:#20303a;color:#9fe0ff;font-size:12px;margin:2px 4px 2px 0}
+.favbtn{float:right;background:var(--card);border:1px solid var(--line);color:var(--accent2);font-size:12px;padding:5px 10px;border-radius:8px;cursor:pointer}
+.favbtn.on{background:#3a2f1a;border-color:#6a5426;color:#ffd58a}
+.empty{color:var(--muted);font-size:13px;padding:10px 0}
+.loading{text-align:center;padding:30px;color:var(--muted)}
+.tabs{display:flex;gap:8px;justify-content:center;margin:14px 0 0}
+.tab{padding:8px 16px;border-radius:999px;background:var(--card2);border:1px solid var(--line);color:var(--muted);font-size:13px;cursor:pointer}
+.tab.active{background:var(--accent);color:#06101f;font-weight:700;border-color:var(--accent)}
+.panel{display:none}.panel.active{display:block}
+</style>
+</head>
+<body>
+<header>
+  <h1>SceneLex · AI 英语记忆</h1>
+  <div class="sub">句子优先 · 同义对比 · 口语 chunk · 朗读跟读 · 收藏复习</div>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" data-tab="learn">学习</div>
+    <div class="tab" data-tab="fav">收藏</div>
+    <div class="tab" data-tab="settings">设置</div>
+  </div>
+
+  <!-- 学习 -->
+  <div class="panel active" id="panel-learn">
+    <div class="searchbar">
+      <input id="q" type="text" placeholder="输入英语或中文：angry / 高兴 / pissed off / over the moon" autocomplete="off">
+      <button id="go">查询</button>
+    </div>
+    <div id="out"></div>
+  </div>
+
+  <!-- 收藏 -->
+  <div class="panel" id="panel-fav">
+    <div class="card">
+      <h2>我的收藏</h2>
+      <div style="display:flex;gap:8px;margin:10px 0">
+        <select id="favCat" style="flex:1;background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px;font-size:14px">
+          <option value="">全部分类</option>
+        </select>
+        <button class="ghost" id="exportFav">导出</button>
+      </div>
+    </div>
+    <div id="favOut"></div>
+  </div>
+
+  <!-- 设置 -->
+  <div class="panel" id="panel-settings">
+    <div class="card">
+      <h2>访问设置</h2>
+      <p class="muted">首次使用需要填写你的访问密码。这个密码由服务提供者分配。</p>
+      <div style="margin:12px 0">
+        <input id="password" type="password" placeholder="输入访问密码" style="margin-bottom:10px">
+        <button id="savePwd" style="width:100%">保存</button>
+      </div>
+      <p class="note">密码只存在你的浏览器本地，不会上传。</p>
+    </div>
+    <div class="card">
+      <h2>数据</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="ghost" id="exportAll">导出全部数据</button>
+        <button class="ghost" id="clearFav" style="color:#ffb3b3">清空收藏</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const API_URL = '/api/query'; // Vercel 部署后自动生效
+
+// ========== 本地存储 ==========
+const LS = {
+  fav: 'scenelex_fav_v2',
+  pwd: 'scenelex_pwd_v2',
+  cache: 'scenelex_cache_v2'
+};
+function load(k, def){ try{ return JSON.parse(localStorage.getItem(k)) ?? def; }catch(e){ return def; } }
+function save(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+
+let FAVS = load(LS.fav, []);
+let CACHE = load(LS.cache, {});
+
+// ========== 朗读 ==========
+function speak(text) {
+  if (!text) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-US';
+  u.rate = 0.85;
+  speechSynthesis.speak(u);
+}
+
+// ========== 查询 ==========
+async function doSearch() {
+  const q = $('q').value.trim();
+  if (!q) return;
+
+  const password = localStorage.getItem(LS.pwd);
+  if (!password) {
+    $('out').innerHTML = `<div class="card"><p class="err">请先到「设置」页填写访问密码。</p></div>`;
+    document.querySelector('[data-tab="settings"]').click();
+    return;
+  }
+
+  // 检查缓存（同一查询 24 小时内复用）
+  const cacheKey = q.toLowerCase();
+  if (CACHE[cacheKey] && Date.now() - CACHE[cacheKey].ts < 86400000) {
+    renderCard(CACHE[cacheKey].card);
+    return;
+  }
+
+  $('out').innerHTML = `<div class="loading">AI 正在生成学习卡片…</div>`;
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      $('out').innerHTML = `<div class="card"><p class="err">${data.error || '查询失败'}</p></div>`;
+      return;
+    }
+
+    CACHE[cacheKey] = { card: data.card, ts: Date.now() };
+    save(LS.cache, CACHE);
+
+    renderCard(data.card);
+
+  } catch (err) {
+    $('out').innerHTML = `<div class="card"><p class="err">网络错误，请检查网络后重试。</p></div>`;
+  }
+}
+
+// ========== 渲染卡片 ==========
+function renderCard(c) {
+  if (!c) { $('out').innerHTML = '<div class="card"><p class="err">卡片为空</p></div>'; return; }
+
+  const isFav = FAVS.some(f => f.word === c.word);
+  const favCls = isFav ? 'favbtn on' : 'favbtn';
+
+  let html = `<div class="card">
+    <button class="${favCls}" data-word="${esc(c.word)}">${isFav ? '★ 已收藏' : '☆ 收藏'}</button>
+    <h2>${esc(c.word)} <span class="tag ${c.type==='chunk'?'chunk':''}">${esc(c.type||'word')}</span></h2>
+    <p class="muted">${esc(c.core_sense||'')}</p>`;
+
+  // 母语场景
+  if (c.native_scenes?.length) {
+    html += `<h3>母语者场景</h3>`;
+    c.native_scenes.forEach(s => {
+      html += `<div class="scene">
+        <span class="label">${esc(s.scene||'')}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="flex:1">${esc(s.en)}</span>
+          <button class="speak" data-say="${esc(s.en)}">🔊</button>
+        </div>
+        <div class="cn">${esc(s.cn)}</div>
+      </div>`;
+    });
+  }
+
+  // 同义词
+  if (c.synonyms?.length) {
+    html += `<h3>同义词对比</h3>`;
+    c.synonyms.forEach(s => {
+      html += `<div class="synitem">
+        <div><span class="word">${esc(s.word)}</span><span class="tag">${esc(s.register||'')}</span>
+        <button class="speak" style="float:right" data-say="${esc(s.example||s.word)}">🔊</button></div>
+        <div class="cn" style="margin-top:4px">${esc(s.example||'')}</div>
+      </div>`;
+    });
+  }
+
+  // 同义 chunk
+  if (c.synonym_chunks?.length) {
+    html += `<h3>相关口语 chunk</h3>`;
+    c.synonym_chunks.forEach(s => {
+      html += `<div class="synitem">
+        <div><span class="word" style="color:#9fe0b4">${esc(s.chunk)}</span>
+        <button class="speak" style="float:right" data-say="${esc(s.example||s.chunk)}">🔊</button></div>
+        <div class="cn" style="margin-top:4px">${esc(s.meaning||'')}</div>
+        <div style="font-size:13px;margin-top:2px">${esc(s.example||'')}</div>
+      </div>`;
+    });
+  }
+
+  // TTS 提示
+  if (c.tts_focus) {
+    html += `<p class="note">🔊 朗读提示：${esc(c.tts_focus)}</p>`;
+  }
+
+  html += `</div>`;
+  $('out').innerHTML = html;
+
+  // 绑定朗读
+  $('out').querySelectorAll('[data-say]').forEach(b => {
+    b.addEventListener('click', () => speak(b.dataset.say));
+  });
+
+  // 绑定收藏
+  const favBtn = $('out').querySelector('.favbtn');
+  if (favBtn) {
+    favBtn.addEventListener('click', () => toggleFav(c));
+  }
+}
+
+function toggleFav(card) {
+  const idx = FAVS.findIndex(f => f.word === card.word);
+  if (idx >= 0) {
+    FAVS.splice(idx, 1);
+  } else {
+    FAVS.push({ ...card, cat: card.type === 'chunk' ? '口语 chunk' : '单词', ts: Date.now() });
+  }
+  save(LS.fav, FAVS);
+  renderCard(card);
+  refreshFavCat();
+}
+
+// ========== 收藏页 ==========
+function renderFavs() {
+  const filter = $('favCat').value;
+  const list = filter ? FAVS.filter(f => f.cat === filter) : FAVS;
+
+  if (!list.length) {
+    $('favOut').innerHTML = `<div class="card"><div class="empty">还没有收藏。查询后点 ☆ 收藏。</div></div>`;
+    return;
+  }
+
+  const groups = {};
+  list.forEach(f => { (groups[f.cat] = groups[f.cat] || []).push(f); });
+
+  $('favOut').innerHTML = Object.keys(groups).map(cat => `
+    <div class="card">
+      <h3 style="color:var(--accent2);margin:0 0 8px">${esc(cat)} (${groups[cat].length})</h3>
+      ${groups[cat].map(f => `
+        <div class="synitem">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="word">${esc(f.word)}</span>
+            <button class="speak" data-say="${esc(f.native_scenes?.[0]?.en || f.word)}">🔊</button>
+          </div>
+          <div class="cn" style="margin-top:4px">${esc(f.core_sense || '')}</div>
+          ${f.native_scenes?.[0] ? `<div style="font-size:13px;margin-top:4px">${esc(f.native_scenes[0].en)}</div>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  $('favOut').querySelectorAll('[data-say]').forEach(b => {
+    b.addEventListener('click', () => speak(b.dataset.say));
+  });
+}
+
+function refreshFavCat() {
+  const cats = [...new Set(FAVS.map(f => f.cat))];
+  const sel = $('favCat');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部分类</option>' + cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  sel.value = cur;
+}
+
+// ========== 工具 ==========
+function esc(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+// ========== 事件绑定 ==========
+$('go').addEventListener('click', doSearch);
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    $('panel-' + t.dataset.tab).classList.add('active');
+    if (t.dataset.tab === 'fav') { refreshFavCat(); renderFavs(); }
+    if (t.dataset.tab === 'settings') {
+      $('password').value = localStorage.getItem(LS.pwd) || '';
+    }
+  });
+});
+
+$('savePwd').addEventListener('click', () => {
+  const pwd = $('password').value.trim();
+  if (!pwd) { alert('请输入密码'); return; }
+  localStorage.setItem(LS.pwd, pwd);
+  alert('已保存');
+});
+
+$('favCat').addEventListener('change', renderFavs);
+
+$('exportFav').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(FAVS, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'scenelex_favs.json';
+  a.click();
+});
+
+$('exportAll').addEventListener('click', () => {
+  const all = { favs: FAVS, cache: CACHE };
+  const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'scenelex_all.json';
+  a.click();
+});
+
+$('clearFav').addEventListener('click', () => {
+  if (confirm('清空所有收藏？')) {
+    FAVS = [];
+    save(LS.fav, FAVS);
+    refreshFavCat();
+    renderFavs();
+  }
+});
+
+// ========== PWA ==========
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// 初始
+if (localStorage.getItem(LS.pwd)) {
+  $('q').value = 'pissed off';
+  doSearch();
+}
+</script>
+</body>
+</html>
