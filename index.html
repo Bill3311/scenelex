@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SceneLex · AI 英语记忆</title>
+<title>秀语语言练习 · Show Me, Teach Me</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0e1116">
 <style>
@@ -53,7 +53,8 @@ button.speak{background:transparent;border:1px solid var(--line);color:var(--acc
 </head>
 <body>
 <header>
-  <h1>SceneLex · AI 英语记忆</h1>
+  <h1>秀语语言练习</h1>
+  <div class="sub" style="font-size:14px;margin-bottom:4px">Show Me, Teach Me</div>
   <div class="sub">句子优先 · 同义对比 · 口语 chunk · 朗读跟读 · 收藏复习</div>
 </header>
 
@@ -162,10 +163,16 @@ async function doSearch() {
       body: JSON.stringify({ query: q, password })
     });
 
-    const data = await res.json();
+    // 先按文字读取，再尝试解析成 JSON。
+    // 这样即使服务器返回的不是 JSON（例如 Vercel 的 404 页面），也能显示真实原因。
+    const text = await res.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch (e) {}
 
     if (!res.ok) {
-      $('out').innerHTML = `<div class="card"><p class="err">${data.error || '查询失败'}</p></div>`;
+      let msg = data.error || `查询失败（错误码 ${res.status}）`;
+      if (res.status === 404) msg = '接口 /api/query 不存在（404）：请检查 GitHub 里 query.js 是否放在 api 文件夹中。';
+      $('out').innerHTML = `<div class="card"><p class="err">${esc(msg)}</p></div>`;
       return;
     }
 
@@ -338,7 +345,7 @@ $('exportFav').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(FAVS, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'scenelex_favs.json';
+  a.download = 'showme_favs.json';
   a.click();
 });
 
@@ -347,7 +354,7 @@ $('exportAll').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'scenelex_all.json';
+  a.download = 'showme_all.json';
   a.click();
 });
 
